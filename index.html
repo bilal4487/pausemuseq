@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>مشغل موسيقى - PAUSE</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #000; /* أسود 75% */
+      color: #f0f0f0; /* أبيض 5% */
+      direction: rtl;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px;
+      padding-bottom: 90px;
+      overflow: hidden;
+    }
+
+    /* رسالة الخطأ */
+    #error-message {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      background-color: #ff3333;
+      color: white;
+      padding: 14px;
+      border-radius: 10px;
+      text-align: center;
+      font-size: 15px;
+      font-weight: bold;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+    #error-message.show {
+      opacity: 1;
+    }
+
+    /* قسم الأغنية الحالية */
+    #now-playing {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    #cover {
+      width: 130px;
+      height: 130px;
+      border-radius: 14px;
+      object-fit: cover;
+      border: 3px solid #008080; /* Teal */
+      box-shadow: 0 0 10px rgba(0, 128, 128, 0.5);
+    }
+
+    #info {
+      flex: 1;
+    }
+
+    #song-name {
+      font-size: 1.5em;
+      font-weight: bold;
+      margin-bottom: 6px;
+      color: #fff;
+    }
+
+    #artist {
+      font-size: 1.1em;
+      color: #ccc;
+    }
+
+    /* شريط التقدم */
+    #progress-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    #current-time, #duration {
+      font-size: 0.95em;
+      color: #ccc;
+      min-width: 90px;
+      text-align: center;
+    }
+
+    #progress-bar {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 8px;
+      background: #222;
+      border-radius: 4px;
+      outline: none;
+    }
+
+    #progress-bar::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #008080;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0, 128, 128, 0.8);
+    }
+
+    /* أزرار التحكم */
+    #controls {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 18px;
+      padding: 16px;
+      background: #111;
+      border-radius: 60px;
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.6);
+    }
+
+    #controls button {
+      background: #1a1a1a;
+      border: none;
+      color: #aaa;
+      cursor: pointer;
+      width: 55px;
+      height: 55px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: all 0.3s ease;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    #controls button::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, #fff 0%, transparent 70%);
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.8);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    #controls button:active::after {
+      opacity: 0.3;
+      transform: translate(-50%, -50%) scale(1.4);
+    }
+
+    #controls button svg {
+      width: 28px;
+      height: 28px;
+      fill: #ccc;
+      transition: fill 0.3s, transform 0.2s;
+    }
+
+    #controls button:hover svg {
+      transform: scale(1.1);
+    }
+
+    #play-pause svg, #prev svg, #next svg, #repeat svg {
+      fill: #008080;
+    }
+
+    #repeat.active svg {
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.6; }
+      100% { opacity: 1; }
+    }
+
+    #favorite svg {
+      fill: #aaa;
+      transition: fill 0.4s ease;
+    }
+
+    #favorite.favorited svg {
+      fill: #e53935;
+      animation: heartbeat 0.6s ease;
+    }
+
+    @keyframes heartbeat {
+      0% { transform: scale(1); }
+      25% { transform: scale(1.3); }
+      50% { transform: scale(1); }
+      75% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+
+    #play-pause {
+      width: 65px;
+      height: 65px;
+      background: #008080;
+    }
+
+    #play-pause svg {
+      width: 32px;
+      height: 32px;
+      fill: white;
+    }
+
+    @media (max-width: 480px) {
+      #cover {
+        width: 110px;
+        height: 110px;
+      }
+      #song-name {
+        font-size: 1.3em;
+      }
+      #controls button {
+        width: 50px;
+        height: 50px;
+      }
+      #play-pause {
+        width: 60px;
+        height: 60px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- رسالة الخطأ -->
+  <div id="error-message">فشل تحميل بيانات الموسيقى.</div>
+
+  <!-- غلاف الأغنية والعنوان -->
+  <div id="now-playing">
+    <img id="cover" src="https://via.placeholder.com/130/333/fff?text=No+Cover" alt="صورة الأغنية" />
+    <div id="info">
+      <div id="song-name">جاري التحميل...</div>
+      <div id="artist">PAUSE</div>
+    </div>
+  </div>
+
+  <!-- شريط التقدم -->
+  <div id="progress-container">
+    <span id="current-time">m:00 s:00</span>
+    <input type="range" id="progress-bar" value="0" step="1" min="0" max="100" />
+    <span id="duration">m:00 s:00</span>
+  </div>
+
+  <!-- أزرار التحكم -->
+  <div id="controls">
+    <button id="prev">
+      <svg viewBox="0 0 24 24">
+        <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+      </svg>
+    </button>
+    <button id="repeat">
+      <svg viewBox="0 0 24 24">
+        <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/>
+      </svg>
+    </button>
+    <button id="play-pause">
+      <svg id="play-icon" viewBox="0 0 24 24">
+        <path d="M8 5v14l11-7z"/>
+      </svg>
+    </button>
+    <button id="next">
+      <svg viewBox="0 0 24 24">
+        <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+      </svg>
+    </button>
+    <button id="favorite">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- المشغل الصوتي -->
+  <audio id="audio"></audio>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const audio = document.getElementById("audio");
+      const cover = document.getElementById("cover");
+      const songName = document.getElementById("song-name");
+      const progressBar = document.getElementById("progress-bar");
+      const currentTimeEl = document.getElementById("current-time");
+      const durationEl = document.getElementById("duration");
+      const playPauseBtn = document.getElementById("play-pause");
+      const prevBtn = document.getElementById("prev");
+      const nextBtn = document.getElementById("next");
+      const repeatBtn = document.getElementById("repeat");
+      const favoriteBtn = document.getElementById("favorite");
+      const errorMessage = document.getElementById("error-message");
+
+      let tracks = [];
+      let currentTrackIndex = 0;
+      let favorites = new Set();
+
+      // تنسيق الوقت: m:MM s:SS
+      const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `m:${mins.toString().padStart(2, '0')} s:${secs.toString().padStart(2, '0')}`;
+      };
+
+      // تحميل trak.json من نفس المجلد
+      fetch("trak.json")
+        .then(res => {
+          if (!res.ok) throw new Error("الملف غير موجود");
+          return res.json();
+        })
+        .then(data => {
+          if (!Array.isArray(data) || data.length === 0) throw new Error("الملف فارغ");
+          tracks = data;
+          loadTrack(0);
+          errorMessage.classList.remove("show");
+        })
+        .catch(err => {
+          console.error("خطأ في تحميل trak.json:", err);
+          errorMessage.classList.add("show");
+          setTimeout(() => errorMessage.classList.remove("show"), 5000);
+        });
+
+      const loadTrack = (index) => {
+        if (tracks.length === 0) return;
+        const track = tracks[index];
+        if (!track.url || !track.i || !track.ne) {
+          console.error("بيانات الأغنية غير مكتملة", track);
+          return;
+        }
+
+        audio.src = track.url;
+        cover.src = track.i;
+        songName.textContent = track.ne;
+        durationEl.textContent = formatTime(track.t || 0);
+        favoriteBtn.classList.toggle("favorited", favorites.has(index));
+        audio.load();
+
+        playPauseBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+      };
+
+      playPauseBtn.addEventListener("click", () => {
+        if (audio.paused) {
+          audio.play().catch(e => console.error("فشل التشغيل:", e));
+          playPauseBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+        } else {
+          audio.pause();
+          playPauseBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+        }
+      });
+
+      audio.addEventListener("timeupdate", () => {
+        const currentTime = audio.currentTime;
+        const duration = audio.duration || 1;
+        progressBar.value = (currentTime / duration) * 100;
+        currentTimeEl.textContent = formatTime(currentTime);
+      });
+
+      progressBar.addEventListener("input", () => {
+        const duration = audio.duration || 1;
+        audio.currentTime = (progressBar.value / 100) * duration;
+      });
+
+      audio.addEventListener("ended", () => {
+        if (repeatBtn.classList.contains("active")) {
+          audio.currentTime = 0;
+          audio.play();
+        } else {
+          nextTrack();
+        }
+      });
+
+      repeatBtn.addEventListener("click", () => {
+        repeatBtn.classList.toggle("active");
+      });
+
+      prevBtn.addEventListener("click", () => {
+        currentTrackIndex = (currentTrackIndex - 1 + tracks.length) % tracks.length;
+        loadTrack(currentTrackIndex);
+      });
+
+      nextBtn.addEventListener("click", () => {
+        nextTrack();
+      });
+
+      const nextTrack = () => {
+        currentTrackIndex = (currentTrackIndex + 1) % tracks.length;
+        loadTrack(currentTrackIndex);
+      };
+
+      favoriteBtn.addEventListener("click", () => {
+        if (favorites.has(currentTrackIndex)) {
+          favorites.delete(currentTrackIndex);
+          favoriteBtn.classList.remove("favorited");
+        } else {
+          favorites.add(currentTrackIndex);
+          favoriteBtn.classList.add("favorited");
+        }
+      });
+    });
+  </script>
+</body>
+</html>
