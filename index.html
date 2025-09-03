@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>مشغل موسيقى - PAUSE</title>
+  <title>PAUSE</title>
   <style>
     * {
       margin: 0;
@@ -13,15 +13,15 @@
 
     body {
       font-family: 'Segoe UI', sans-serif;
-      background-color: #000; /* أسود 75% */
-      color: #f0f0f0; /* أبيض 5% */
+      background-color: #000;
+      color: #f0f0f0;
       direction: rtl;
       height: 100vh;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       padding: 16px;
-      padding-bottom: 90px;
+      padding-bottom: 20px;
       overflow: hidden;
     }
 
@@ -46,7 +46,7 @@
       opacity: 1;
     }
 
-    /* قسم الأغنية الحالية */
+    /* الأغنية الحالية */
     #now-playing {
       display: flex;
       align-items: center;
@@ -59,7 +59,7 @@
       height: 130px;
       border-radius: 14px;
       object-fit: cover;
-      border: 3px solid #008080; /* Teal */
+      border: 3px solid #008080;
       box-shadow: 0 0 10px rgba(0, 128, 128, 0.5);
     }
 
@@ -124,6 +124,7 @@
       background: #111;
       border-radius: 60px;
       box-shadow: 0 6px 15px rgba(0, 0, 0, 0.6);
+      margin-bottom: 20px;
     }
 
     #controls button {
@@ -216,6 +217,77 @@
       fill: white;
     }
 
+    /* قائمة الأغاني */
+    #playlist-container {
+      margin-top: 10px;
+      padding: 0 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #playlist-container h3 {
+      color: #008080;
+      margin: 10px 0 10px;
+      text-align: center;
+      font-size: 1.2em;
+    }
+
+    #playlist {
+      max-height: 300px;
+      overflow-y: auto;
+      border-radius: 12px;
+      background: #0f0f0f;
+      padding: 10px 0;
+    }
+
+    #playlist::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #playlist::-webkit-scrollbar-thumb {
+      background: #008080;
+      border-radius: 10px;
+    }
+
+    .playlist-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px;
+      border-bottom: 1px solid #333;
+      cursor: pointer;
+      border-radius: 8px;
+      margin: 4px 0;
+    }
+
+    .playlist-item.current {
+      background: #00808020;
+      border-right: 3px solid #008080;
+    }
+
+    .playlist-item img {
+      width: 50px;
+      height: 50px;
+      border-radius: 8px;
+      border: 1px solid #008080;
+    }
+
+    .playlist-item-info {
+      flex: 1;
+      color: #fff;
+      font-size: 0.95em;
+    }
+
+    .playlist-item-info strong {
+      display: block;
+    }
+
+    .playlist-item-info small {
+      color: #aaa;
+      font-size: 0.85em;
+    }
+
     @media (max-width: 480px) {
       #cover {
         width: 110px;
@@ -240,7 +312,7 @@
   <!-- رسالة الخطأ -->
   <div id="error-message">فشل تحميل بيانات الموسيقى.</div>
 
-  <!-- غلاف الأغنية والعنوان -->
+  <!-- الأغنية الحالية -->
   <div id="now-playing">
     <img id="cover" src="https://via.placeholder.com/130/333/fff?text=No+Cover" alt="صورة الأغنية" />
     <div id="info">
@@ -269,7 +341,7 @@
       </svg>
     </button>
     <button id="play-pause">
-      <svg id="play-icon" viewBox="0 0 24 24">
+      <svg viewBox="0 0 24 24">
         <path d="M8 5v14l11-7z"/>
       </svg>
     </button>
@@ -283,6 +355,12 @@
         <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
       </svg>
     </button>
+  </div>
+
+  <!-- قائمة الأغاني -->
+  <div id="playlist-container">
+    <h3>قائمة الأغاني</h3>
+    <div id="playlist"></div>
   </div>
 
   <!-- المشغل الصوتي -->
@@ -302,6 +380,7 @@
       const repeatBtn = document.getElementById("repeat");
       const favoriteBtn = document.getElementById("favorite");
       const errorMessage = document.getElementById("error-message");
+      const playlistEl = document.getElementById("playlist");
 
       let tracks = [];
       let currentTrackIndex = 0;
@@ -314,16 +393,17 @@
         return `m:${mins.toString().padStart(2, '0')} s:${secs.toString().padStart(2, '0')}`;
       };
 
-      // تحميل trak.json من نفس المجلد
+      // تحميل trak.json من السيرفر
       fetch("trak.json")
         .then(res => {
           if (!res.ok) throw new Error("الملف غير موجود");
           return res.json();
         })
         .then(data => {
-          if (!Array.isArray(data) || data.length === 0) throw new Error("الملف فارغ");
+          if (!Array.isArray(data) || data.length === 0) throw new Error("الملف فارغ أو غير صالح");
           tracks = data;
           loadTrack(0);
+          renderPlaylist();
           errorMessage.classList.remove("show");
         })
         .catch(err => {
@@ -332,24 +412,21 @@
           setTimeout(() => errorMessage.classList.remove("show"), 5000);
         });
 
+      // تحميل الأغنية
       const loadTrack = (index) => {
         if (tracks.length === 0) return;
         const track = tracks[index];
-        if (!track.url || !track.i || !track.ne) {
-          console.error("بيانات الأغنية غير مكتملة", track);
-          return;
-        }
-
         audio.src = track.url;
         cover.src = track.i;
         songName.textContent = track.ne;
         durationEl.textContent = formatTime(track.t || 0);
         favoriteBtn.classList.toggle("favorited", favorites.has(index));
         audio.load();
-
         playPauseBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+        renderPlaylist(); // تحديث القائمة
       };
 
+      // تشغيل / إيقاف
       playPauseBtn.addEventListener("click", () => {
         if (audio.paused) {
           audio.play().catch(e => console.error("فشل التشغيل:", e));
@@ -360,6 +437,7 @@
         }
       });
 
+      // تحديث شريط التقدم
       audio.addEventListener("timeupdate", () => {
         const currentTime = audio.currentTime;
         const duration = audio.duration || 1;
@@ -367,11 +445,13 @@
         currentTimeEl.textContent = formatTime(currentTime);
       });
 
+      // السحب في شريط التقدم
       progressBar.addEventListener("input", () => {
         const duration = audio.duration || 1;
         audio.currentTime = (progressBar.value / 100) * duration;
       });
 
+      // عند الانتهاء
       audio.addEventListener("ended", () => {
         if (repeatBtn.classList.contains("active")) {
           audio.currentTime = 0;
@@ -381,15 +461,18 @@
         }
       });
 
+      // التكرار
       repeatBtn.addEventListener("click", () => {
         repeatBtn.classList.toggle("active");
       });
 
+      // السابق
       prevBtn.addEventListener("click", () => {
         currentTrackIndex = (currentTrackIndex - 1 + tracks.length) % tracks.length;
         loadTrack(currentTrackIndex);
       });
 
+      // التالي
       nextBtn.addEventListener("click", () => {
         nextTrack();
       });
@@ -399,6 +482,7 @@
         loadTrack(currentTrackIndex);
       };
 
+      // المفضلة
       favoriteBtn.addEventListener("click", () => {
         if (favorites.has(currentTrackIndex)) {
           favorites.delete(currentTrackIndex);
@@ -408,6 +492,33 @@
           favoriteBtn.classList.add("favorited");
         }
       });
+
+      // عرض قائمة الأغاني
+      const renderPlaylist = () => {
+        playlistEl.innerHTML = "";
+        tracks.forEach((track, index) => {
+          const item = document.createElement("div");
+          item.className = `playlist-item ${index === currentTrackIndex ? 'current' : ''}`;
+          
+          const time = track.t ? `m:${Math.floor(track.t / 60)} s:${(track.t % 60).toString().padStart(2, '0')}` : "";
+          
+          item.innerHTML = `
+            <img src="${track.i}" alt="صورة">
+            <div class="playlist-item-info">
+              <strong>${track.ne}</strong>
+              <small>${time}</small>
+            </div>
+          `;
+          
+          item.addEventListener("click", () => {
+            currentTrackIndex = index;
+            loadTrack(index);
+            if (!audio.paused) audio.play();
+          });
+          
+          playlistEl.appendChild(item);
+        });
+      };
     });
   </script>
 </body>
